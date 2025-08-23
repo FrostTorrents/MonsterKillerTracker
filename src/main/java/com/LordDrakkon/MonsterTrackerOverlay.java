@@ -16,12 +16,15 @@ import java.awt.Graphics2D;
 public class MonsterTrackerOverlay extends OverlayPanel
 {
     // Context-menu options (strings must match what the plugin checks)
-    public static final String MENU_COPY      = "Copy stats to clipboard";
-    public static final String MENU_PIN_XPH   = "Pin XP/hr";
-    public static final String MENU_PIN_KPH   = "Pin Kills/hr";
-    public static final String MENU_PIN_KL    = "Pin Kills Left";
-    public static final String MENU_PIN_NL    = "Pin Next-Lvl Kills";
-    public static final String MENU_UNPIN_ALL = "Unpin all";
+    public static final String MENU_COPY           = "Copy stats to clipboard";
+    public static final String MENU_PIN_XPH        = "Pin XP/hr";
+    public static final String MENU_PIN_KPH        = "Pin Kills/hr";
+    public static final String MENU_PIN_KL         = "Pin Kills Left";
+    public static final String MENU_PIN_NL         = "Pin Next-Lvl Kills";
+    public static final String MENU_UNPIN_ALL      = "Unpin all";
+    // NEW: history actions
+    public static final String MENU_OPEN_HISTORY   = "Open Slayer History";
+    public static final String MENU_CLEAR_HISTORY  = "Clear Slayer History";
 
     private static final String BEAD = "●";
 
@@ -50,6 +53,9 @@ public class MonsterTrackerOverlay extends OverlayPanel
         getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_OVERLAY, MENU_PIN_KL, null));
         getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_OVERLAY, MENU_PIN_NL, null));
         getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_OVERLAY, MENU_UNPIN_ALL, null));
+        // NEW: history items
+        getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_OVERLAY, MENU_OPEN_HISTORY, null));
+        getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_OVERLAY, MENU_CLEAR_HISTORY, null));
     }
 
     @Override

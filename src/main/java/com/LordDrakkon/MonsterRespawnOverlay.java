@@ -1,31 +1,35 @@
 package com.LordDrakkon;
 
 import net.runelite.api.Client;
+import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.Perspective;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
 import javax.inject.Inject;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
 import java.util.Map;
 
 /**
- * Draws lightweight respawn markers on tiles where you secured kills.
- * - Outline the tile
- * - Show a small countdown if we have a "best observed" respawn for that tile
- * - Uses only RuneLite types (no AWT Point), and no deprecated APIs
+ * Draws lightweight respawn clocks/markers on tiles where you recently killed an NPC.
+ * - Outline the tile.
+ * - Show "R: <secs>" when we can estimate remaining time to respawn.
+ * - Else show "best: <secs>" for best observed respawn time.
+ *
+ * No reflection. Uses net.runelite.api.Point for text rendering.
  */
 public class MonsterRespawnOverlay extends Overlay
 {
-    private static final Color OUTLINE = new Color(120, 220, 255, 160);
-    private static final Color TEXT_DUE = new Color(140, 255, 140);     // "respawn" / due now
-    private static final Color TEXT_SOON = new Color(255, 230, 120);    // ticking down
-    private static final Color TEXT_INFO = new Color(200, 220, 255);    // no PB yet
+    private static final Color TILE_COLOR = new Color(255, 230, 120, 120); // soft amber
+    private static final Color TEXT_COLOR = Color.WHITE;
 
     private final Client client;
     private final MonsterTrackerPlugin plugin;
@@ -45,76 +49,77 @@ public class MonsterRespawnOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D g)
     {
-        // Quick guard: allow toggling from config (or default true if method missing)
-        if (!plugin.isRespawnOverlayEnabled())
+        // Respect toggle directly from config (no need to call back into plugin)
+        if (!config.respawnOverlay())
         {
             return null;
         }
 
-        Map<WorldPoint, MonsterTrackerPlugin.RespawnInfo> data = plugin.respawnInfo();
-        if (data == null || data.isEmpty())
+        Map<WorldPoint, MonsterTrackerPlugin.RespawnInfo> map = plugin.respawnInfo();
+        if (map == null || map.isEmpty())
         {
             return null;
         }
 
-        final int plane = client.getPlane();
-        final BasicStroke oldStroke = (BasicStroke) g.getStroke();
+        long now = System.currentTimeMillis();
+
         g.setStroke(new BasicStroke(1f));
+        g.setColor(TILE_COLOR);
 
-        long nowMs = System.currentTimeMillis();
-
-        for (Map.Entry<WorldPoint, MonsterTrackerPlugin.RespawnInfo> e : data.entrySet())
+        for (Map.Entry<WorldPoint, MonsterTrackerPlugin.RespawnInfo> e : map.entrySet())
         {
             WorldPoint wp = e.getKey();
-            MonsterTrackerPlugin.RespawnInfo info = e.getValue();
-            if (wp == null || info == null) continue;
-            if (wp.getPlane() != plane) continue;
+            MonsterTrackerPlugin.RespawnInfo ri = e.getValue();
+            if (wp == null || ri == null)
+            {
+                continue;
+            }
 
-            // Localize tile (non-deprecated overload)
-            LocalPoint lp = LocalPoint.fromWorld(client, wp.getX(), wp.getY());
-            if (lp == null) continue;
+            LocalPoint lp = LocalPoint.fromWorld(client, wp);
+            if (lp == null)
+            {
+                continue;
+            }
 
-            // Draw tile outline
+            // Draw tile polygon outline
             Polygon poly = Perspective.getCanvasTilePoly(client, lp);
             if (poly != null)
             {
-                OverlayUtil.renderPolygon(g, poly, OUTLINE);
+                g.draw(poly);
             }
 
-            // If we have a best observed respawn time, show a small countdown
-            String text;
-            Color color;
-            if (info.bestSeconds > 0 && info.lastDeathMillis > 0)
+            // Build label:
+            // If we have a recent death + bestSeconds, show remaining.
+            // Otherwise fallback to best observed.
+            String label = null;
+            if (ri.bestSeconds > 0 && ri.lastDeathMillis > 0)
             {
-                long elapsed = Math.max(0L, (nowMs - info.lastDeathMillis) / 1000L);
-                long remain = info.bestSeconds - elapsed;
-
+                int elapsed = (int) Math.max(0, (now - ri.lastDeathMillis) / 1000L);
+                int remain = Math.max(0, ri.bestSeconds - elapsed);
                 if (remain > 0)
                 {
-                    text = "⟳ " + remain + "s";
-                    color = TEXT_SOON;
+                    label = "R: " + remain + "s";
                 }
                 else
                 {
-                    text = "respawn";
-                    color = TEXT_DUE;
+                    label = "best: " + ri.bestSeconds + "s";
                 }
             }
-            else
+            else if (ri.bestSeconds > 0)
             {
-                text = "mark";
-                color = TEXT_INFO;
+                label = "best: " + ri.bestSeconds + "s";
             }
 
-            // Compute text location using RuneLite's Perspective (returns net.runelite.api.Point)
-            Point textLoc = Perspective.getCanvasTextLocation(client, g, lp, text, 0);
-            if (textLoc != null)
+            if (label != null && !label.isEmpty())
             {
-                OverlayUtil.renderTextLocation(g, textLoc, text, color);
+                Point textLoc = Perspective.getCanvasTextLocation(client, g, lp, label, 0);
+                if (textLoc != null)
+                {
+                    OverlayUtil.renderTextLocation(g, textLoc, label, TEXT_COLOR);
+                }
             }
         }
 
-        g.setStroke(oldStroke);
         return null;
     }
 }

@@ -35,7 +35,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/** Combat Progress HUD – core plugin. */
+/** Combat Progress HUD – core plugin (no reflection). */
 @SuppressWarnings({"deprecation", "unused"})
 @PluginDescriptor(
         name = "Combat Progress HUD",
@@ -77,6 +77,9 @@ public class MonsterTrackerPlugin extends Plugin
     public static final String MENU_PIN_KL    = "Pin Kills Left";
     public static final String MENU_PIN_NL    = "Pin Next-Lvl Kills";
     public static final String MENU_UNPIN_ALL = "Unpin all";
+    // (Optional) history actions – add these to Overlay menu if you want right-click control
+    public static final String MENU_OPEN_HISTORY  = "Open Slayer History";
+    public static final String MENU_CLEAR_HISTORY = "Clear Slayer History";
 
     // ==================== DI ====================
     @Inject private Client client;
@@ -173,11 +176,13 @@ public class MonsterTrackerPlugin extends Plugin
     @Override protected void startUp()
     {
         overlayManager.add(overlay);
-        if (isRespawnOverlayEnabled())
+
+        if (config.respawnOverlay())
         {
             if (respawnOverlay == null) respawnOverlay = respawnOverlayProvider.get();
             overlayManager.add(respawnOverlay);
         }
+
         loadFamilyHistory();
         resetStats();
         if (config.slayerEnabled()) pullSlayerFromRuneLite();
@@ -187,8 +192,10 @@ public class MonsterTrackerPlugin extends Plugin
     {
         saveCurrentSessionIntoHistory();
         storeFamilyHistory();
+
         overlayManager.remove(overlay);
         if (respawnOverlay != null) overlayManager.remove(respawnOverlay);
+
         resetStats();
         closeHistoryWindow();
         closeFaqWindow();
@@ -309,7 +316,7 @@ public class MonsterTrackerPlugin extends Plugin
 
         if ("respawnOverlay".equals(e.getKey()))
         {
-            if (isRespawnOverlayEnabled())
+            if (config.respawnOverlay())
             {
                 if (respawnOverlay == null) respawnOverlay = respawnOverlayProvider.get();
                 overlayManager.add(respawnOverlay);
@@ -318,6 +325,7 @@ public class MonsterTrackerPlugin extends Plugin
             {
                 overlayManager.remove(respawnOverlay);
             }
+            return;
         }
 
         if ("openHistoryTrigger".equals(e.getKey()) && config.openHistoryTrigger())
@@ -371,6 +379,15 @@ public class MonsterTrackerPlugin extends Plugin
             case MENU_PIN_KL:  pinKillsLeft = true; pinnedKillsLeft = getKillsLeft();              toast("Pinned Kills Left: " + pinnedKillsLeft); break;
             case MENU_PIN_NL:  pinNextLvl = true;  pinnedNextLvl = getKillsToNextLevel();         toast("Pinned Next-Lvl Kills: " + pinnedNextLvl); break;
             case MENU_UNPIN_ALL: pinXpHr = pinKph = pinKillsLeft = pinNextLvl = false;            toast("Cleared all pins."); break;
+
+            case MENU_OPEN_HISTORY:
+                openHistoryWindow();
+                toast("Opened Slayer task history.");
+                break;
+            case MENU_CLEAR_HISTORY:
+                clearHistory();
+                toast("Cleared Slayer task history.");
+                break;
         }
     }
     private void toast(String s){ try{ client.addChatMessage(ChatMessageType.GAMEMESSAGE,"","Combat Progress HUD: "+s,""); }catch(Exception ignored){} }
@@ -872,8 +889,6 @@ public class MonsterTrackerPlugin extends Plugin
     }
 
     public int getSlayerElapsedSeconds(){ long ms = slayerActiveMillis(); return (int)Math.max(0L, ms/1000L); }
-
-    // >>> Added getters to satisfy Overlay/compile:
     public String getSlayerTaskName() { return slayerTaskName == null ? "" : slayerTaskName; }
     public Integer getSlayerRemaining() { return slayerAmount; }
 
@@ -1048,10 +1063,11 @@ public class MonsterTrackerPlugin extends Plugin
     // Respawn overlay accessors
     // ===========================================================
     public Map<WorldPoint, RespawnInfo> respawnInfo(){ return respawns; }
+
+    /** Backward-compatible helper for overlays; no reflection. */
     public boolean isRespawnOverlayEnabled()
     {
-        try { return (boolean) config.getClass().getMethod("respawnOverlay").invoke(config); }
-        catch (Exception ignore) { return true; }
+        return config.respawnOverlay();
     }
 
     // ===========================================================

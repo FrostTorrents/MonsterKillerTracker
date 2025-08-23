@@ -6,7 +6,152 @@ import net.runelite.client.config.*;
 @ConfigGroup("monstertracker")
 public interface MonsterTrackerConfig extends Config
 {
-    // ===== Skill choice (for goal calculations) =====
+    // ───────────────────────── Sections ─────────────────────────
+    @ConfigSection(
+            name = "Display",
+            description = "Overlay appearance and which rows to show",
+            position = 0
+    )
+    String secDisplay = "display";
+
+    @ConfigSection(
+            name = "Slayer",
+            description = "Task pace, ETA, pause, ROI",
+            position = 1
+    )
+    String secSlayer = "slayer";
+
+    @ConfigSection(
+            name = "Cannon",
+            description = "Cannon tracking",
+            position = 2
+    )
+    String secCannon = "cannon";
+
+    @ConfigSection(
+            name = "Detection",
+            description = "How the plugin detects your current target",
+            position = 3
+    )
+    String secDetect = "detect";
+
+    @ConfigSection(
+            name = "Advanced",
+            description = "Auto-cap XP/kill outlier filtering",
+            position = 4,
+            closedByDefault = true
+    )
+    String secAdvanced = "advanced";
+
+    @ConfigSection(
+            name = "Windows / Tools",
+            description = "Open helper windows, clear history, etc.",
+            position = 5
+    )
+    String secWindows = "windows";
+
+    // ────────────────────── Display options ─────────────────────
+    @Range(min = 180, max = 420)
+    @ConfigItem(
+            keyName = "overlayWidth",
+            name = "Overlay width",
+            description = "Set overlay width (px)",
+            position = 0,
+            section = secDisplay
+    )
+    default int overlayWidth() { return 240; }
+
+    @ConfigItem(
+            keyName = "showHeader",
+            name = "Show header",
+            description = "Show monster name, skill, total kills",
+            position = 1,
+            section = secDisplay
+    )
+    default boolean showHeader() { return true; }
+
+    @ConfigItem(
+            keyName = "showLevelingBlock",
+            name = "Show Leveling block",
+            description = "XP/hr, KPH, Kills Left, Next Level, Time Left, GP/hr",
+            position = 2,
+            section = secDisplay
+    )
+    default boolean showLevelingBlock() { return true; }
+
+    @ConfigItem(
+            keyName = "showXpHourRow",
+            name = "• Show XP/Hour",
+            description = "Row inside Leveling block",
+            position = 3,
+            section = secDisplay
+    )
+    default boolean showXpHourRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showKillsHourRow",
+            name = "• Show Kills/Hour",
+            description = "Row inside Leveling block",
+            position = 4,
+            section = secDisplay
+    )
+    default boolean showKillsHourRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showKillsLeftRow",
+            name = "• Show Kills Left (goal)",
+            description = "Row inside Leveling block",
+            position = 5,
+            section = secDisplay
+    )
+    default boolean showKillsLeftRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showNextLevelRow",
+            name = "• Show Next Level Kills",
+            description = "Row inside Leveling block",
+            position = 6,
+            section = secDisplay
+    )
+    default boolean showNextLevelRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showTimeLeftRow",
+            name = "• Show Time Left",
+            description = "Row inside Leveling block",
+            position = 7,
+            section = secDisplay
+    )
+    default boolean showTimeLeftRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showGpHrRow",
+            name = "• Show GP/hr (picked)",
+            description = "Row inside Leveling block",
+            position = 8,
+            section = secDisplay
+    )
+    default boolean showGpHrRow() { return true; }
+
+    @ConfigItem(
+            keyName = "showPaceArrows",
+            name = "Show pace arrows",
+            description = "▲ improving, ▼ slowing, ▶ steady (last ~5 min vs session)",
+            position = 9,
+            section = secDisplay
+    )
+    default boolean showPaceArrows() { return true; }
+
+    @ConfigItem(
+            keyName = "showConfidence",
+            name = "Show confidence bead",
+            description = "Colors the Kills Left row based on XP/kill stability",
+            position = 10,
+            section = secDisplay
+    )
+    default boolean showConfidence() { return true; }
+
+    // ─────────────────────── Level targets ──────────────────────
     enum TargetSkill
     {
         ATTACK(Skill.ATTACK),
@@ -14,449 +159,269 @@ public interface MonsterTrackerConfig extends Config
         DEFENCE(Skill.DEFENCE),
         RANGED(Skill.RANGED),
         MAGIC(Skill.MAGIC),
+        HITPOINTS(Skill.HITPOINTS),
         SLAYER(Skill.SLAYER);
 
-        private final Skill skill;
-        TargetSkill(Skill s) { this.skill = s; }
-        public Skill toSkill() { return skill; }
-        @Override public String toString() { return skill.getName(); }
+        private final Skill s;
+        TargetSkill(Skill s){ this.s = s; }
+        public Skill toSkill(){ return s; }
     }
 
-    // ---------------------------------------------------------------------
-    // CORE
-    // ---------------------------------------------------------------------
     @ConfigItem(
             keyName = "targetSkill",
             name = "Target skill",
-            description = "Which combat skill your goal applies to",
-            position = 0
+            description = "Which skill to track XP and goals for",
+            position = 20,
+            section = secDisplay
     )
-    default TargetSkill targetSkill() { return TargetSkill.ATTACK; }
+    default TargetSkill targetSkill() { return TargetSkill.STRENGTH; }
 
     @Range(min = 1, max = 99)
     @ConfigItem(
             keyName = "targetLevel",
             name = "Target level",
-            description = "Level you want to reach",
-            position = 1
+            description = "Used for Kills Left (goal)",
+            position = 21,
+            section = secDisplay
     )
-    default int targetLevel() { return 84; }
+    default int targetLevel() { return 99; }
 
-    // ---------------------------------------------------------------------
-    // DISPLAY – let users decide exactly what appears on the overlay
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "Display",
-            description = "Toggle individual rows/blocks in the HUD",
-            position = 4
-    )
-    String display = "display";
-
-    @Range(min = 200, max = 360)
+    // ───────────────────────── Slayer ───────────────────────────
     @ConfigItem(
-            keyName = "overlayWidth",
-            name = "Overlay width",
-            description = "Panel width (px); widen to avoid wrapping",
-            section = display,
-            position = 5
+            keyName = "slayerEnabled",
+            name = "Enable Slayer tracking",
+            description = "Import task from RL, pace/ETA, pause on idle",
+            position = 0,
+            section = secSlayer
     )
-    default int overlayWidth() { return 260; }
-
-    @ConfigItem(
-            keyName = "showHeader",
-            name = "Header (Monster / Tracking / Kills)",
-            description = "Show the header block at the top",
-            section = display,
-            position = 6
-    )
-    default boolean showHeader() { return true; }
-
-    @ConfigItem(
-            keyName = "showLevelingBlock",
-            name = "Leveling block",
-            description = "Show XP/hr, KPH, Kills Left, etc.",
-            section = display,
-            position = 7
-    )
-    default boolean showLevelingBlock() { return true; }
-
-    @ConfigItem(
-            keyName = "showXpHourRow",
-            name = "XP/Hour row",
-            description = "Show XP/hr",
-            section = display,
-            position = 8
-    )
-    default boolean showXpHourRow() { return true; }
-
-    @ConfigItem(
-            keyName = "showKillsHourRow",
-            name = "Kills/Hour row",
-            description = "Show KPH",
-            section = display,
-            position = 9
-    )
-    default boolean showKillsHourRow() { return true; }
-
-    @ConfigItem(
-            keyName = "showPaceArrows",
-            name = "Pace arrows (▲ ▶ ▼)",
-            description = "Compare last ~5 min vs session average",
-            section = display,
-            position = 10
-    )
-    default boolean showPaceArrows() { return true; }
-
-    @ConfigItem(
-            keyName = "showKillsLeftRow",
-            name = "Kills Left row",
-            description = "Show Kills Left (goal to target level)",
-            section = display,
-            position = 11
-    )
-    default boolean showKillsLeftRow() { return true; }
-
-    @ConfigItem(
-            keyName = "showNextLevelRow",
-            name = "Next Level Kills row",
-            description = "Kills remaining to your NEXT level",
-            section = display,
-            position = 12
-    )
-    default boolean showNextLevelRow() { return true; }
-
-    @ConfigItem(
-            keyName = "showTimeLeftRow",
-            name = "Time Left row",
-            description = "Show estimated time to hit your target level",
-            section = display,
-            position = 13
-    )
-    default boolean showTimeLeftRow() { return true; }
-
-    @ConfigItem(
-            keyName = "showGpHrRow",
-            name = "GP/hr row",
-            description = "Show GP picked per hour (separate from ROI)",
-            section = display,
-            position = 14
-    )
-    default boolean showGpHrRow() { return true; }
+    default boolean slayerEnabled() { return true; }
 
     @ConfigItem(
             keyName = "showSlayerBlock",
-            name = "Slayer Task block",
-            description = "Show Slayer section (it hides automatically when task finishes)",
-            section = display,
-            position = 15
+            name = "Show Slayer block",
+            description = "Shows Task, Left, Time, Pace, ETA, ROI",
+            position = 1,
+            section = secSlayer
     )
     default boolean showSlayerBlock() { return true; }
 
     @ConfigItem(
+            keyName = "slayerShowLevelingOnTask",
+            name = "Keep Leveling block on task",
+            description = "Show leveling block while on-task",
+            position = 2,
+            section = secSlayer
+    )
+    default boolean slayerShowLevelingOnTask() { return true; }
+
+    @ConfigItem(
             keyName = "showTaskName",
-            name = "Task: name",
-            description = "Show task name",
-            section = display,
-            position = 16
+            name = "• Show Task name",
+            description = "Row inside Slayer block",
+            position = 3,
+            section = secSlayer
     )
     default boolean showTaskName() { return true; }
 
     @ConfigItem(
             keyName = "showTaskLeft",
-            name = "Task: left",
-            description = "Show remaining monsters on task",
-            section = display,
-            position = 17
+            name = "• Show Task Left",
+            description = "Row inside Slayer block",
+            position = 4,
+            section = secSlayer
     )
     default boolean showTaskLeft() { return true; }
 
     @ConfigItem(
             keyName = "showTaskTime",
-            name = "Task: time",
-            description = "Show task time (active time; pauses on idle)",
-            section = display,
-            position = 18
+            name = "• Show Task Time (active)",
+            description = "Pauses after idle threshold",
+            position = 5,
+            section = secSlayer
     )
     default boolean showTaskTime() { return true; }
 
     @ConfigItem(
             keyName = "showTaskPace",
-            name = "Task: pace (KPH)",
-            description = "Show task kills per hour",
-            section = display,
-            position = 19
+            name = "• Show Task Pace (kph)",
+            description = "Row inside Slayer block",
+            position = 6,
+            section = secSlayer
     )
     default boolean showTaskPace() { return true; }
 
     @ConfigItem(
             keyName = "showTaskEta",
-            name = "Task: ETA",
-            description = "Show task ETA",
-            section = display,
-            position = 20
+            name = "• Show Task ETA",
+            description = "Row inside Slayer block",
+            position = 7,
+            section = secSlayer
     )
     default boolean showTaskEta() { return true; }
 
     @ConfigItem(
-            keyName = "showCannonBlock",
-            name = "Cannon block",
-            description = "Show cannon section (requires 'Enable cannon tracking' below)",
-            section = display,
-            position = 21
-    )
-    default boolean showCannonBlock() { return true; }
-
-    // ---------------------------------------------------------------------
-    // ENHANCEMENTS (visual/analytics)
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "Enhancements",
-            description = "Extra tracking and visuals",
-            position = 22,
-            closedByDefault = true
-    )
-    String enh = "enh";
-
-    @ConfigItem(
-            keyName = "showConfidence",
-            name = "Show confidence bead",
-            description = "Colored bead beside Kills Left based on sample size & variance",
-            section = enh,
-            position = 1
-    )
-    default boolean showConfidence() { return true; }
-
-    @ConfigItem(
-            keyName = "respawnOverlay",
-            name = "Respawn clock/route",
-            description = "Draw lightweight respawn timers on tiles you farm",
-            section = enh,
-            position = 2
-    )
-    default boolean respawnOverlay() { return false; }
-
-    @ConfigItem(
-            keyName = "cannonEnabled",
-            name = "Enable cannon tracking",
-            description = "Track balls loaded, cannon GP/hr and uptime",
-            section = enh,
-            position = 3
-    )
-    default boolean cannonEnabled() { return true; }
-
-    // ---------------------------------------------------------------------
-    // SLAYER (pause, ROI, visibility while on-task)
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "Slayer",
-            description = "Task tracking & ROI",
-            position = 40,
-            closedByDefault = true
-    )
-    String slayer = "slayer";
-
-    @ConfigItem(
-            keyName = "slayerEnabled",
-            name = "Enable Slayer task",
-            description = "Show task name, remaining, and timer/ETA",
-            section = slayer,
-            position = 1
-    )
-    default boolean slayerEnabled() { return true; }
-
-    @ConfigItem(
-            keyName = "slayerShowLevelingOnTask",
-            name = "Show leveling on task",
-            description = "Keep showing Kills Left / Time Left while on a Slayer task",
-            section = slayer,
-            position = 2
-    )
-    default boolean slayerShowLevelingOnTask() { return false; }
-
-    @Range(min = 1, max = 15)
-    @ConfigItem(
-            keyName = "slayerPauseIdleMinutes",
-            name = "Pause task after idle (min)",
-            description = "Task timer pauses if idle this long; resumes when you attack again",
-            section = slayer,
-            position = 3
-    )
-    default int slayerPauseIdleMinutes() { return 3; }
-
-    @ConfigItem(
             keyName = "slayerShowSkipRoi",
             name = "Show Skip ROI",
-            description = "Show Keep / Consider Skip with ETA",
-            section = slayer,
-            position = 4
+            description = "Compares your current KPH/GP/hr vs personal medians",
+            position = 8,
+            section = secSlayer
     )
     default boolean slayerShowSkipRoi() { return true; }
+
+    @Range(min = 1, max = 30)
+    @ConfigItem(
+            keyName = "slayerPauseIdleMinutes",
+            name = "Pause after idle (min)",
+            description = "Idle threshold to pause task time",
+            position = 9,
+            section = secSlayer
+    )
+    default int slayerPauseIdleMinutes() { return 2; }
 
     @Range(min = 10, max = 90)
     @ConfigItem(
             keyName = "slayerRoiSensitivityPct",
-            name = "Skip ROI sensitivity (%)",
-            description = "Lower = recommend skipping sooner (compares to your personal medians)",
-            section = slayer,
-            position = 5
+            name = "ROI sensitivity (%)",
+            description = "Lower = stricter (more likely to suggest skipping)",
+            position = 10,
+            section = secSlayer
     )
-    default int slayerRoiSensitivityPct() { return 75; }
+    default int slayerRoiSensitivityPct() { return 60; }
+
+    // ───────────────────────── Cannon ───────────────────────────
+    @ConfigItem(
+            keyName = "cannonEnabled",
+            name = "Enable cannon tracking",
+            description = "Reads chat to detect setup/load/pickup",
+            position = 0,
+            section = secCannon
+    )
+    default boolean cannonEnabled() { return true; }
 
     @ConfigItem(
-            keyName = "slayerShowRoiGp",
-            name = "Show ROI GP/hr line",
-            description = "Append GP/hr to ROI line",
-            section = slayer,
-            position = 6
+            keyName = "showCannonBlock",
+            name = "Show Cannon block",
+            description = "State, balls used, GP/hr, uptime",
+            position = 1,
+            section = secCannon
     )
-    default boolean slayerShowRoiGp() { return false; }
+    default boolean showCannonBlock() { return true; }
 
-    // ---------------------------------------------------------------------
-    // TUNING (XP/kill filtering, target detection)
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "Tuning",
-            description = "Optional tweaks for power users",
-            position = 60,
-            closedByDefault = true
-    )
-    String tuning = "tuning";
-
-    @Range(min = 3, max = 100)
-    @ConfigItem(
-            keyName = "minKillsForStats",
-            name = "Min kills for stats",
-            description = "Kills required before showing XP/hr & kills left",
-            section = tuning,
-            position = 1
-    )
-    default int minKillsForStats() { return 10; }
-
-    @ConfigItem(
-            keyName = "autoCap",
-            name = "Auto cap XP/kill",
-            description = "Learn a per-NPC XP/kill cap from recent kills",
-            section = tuning,
-            position = 2
-    )
-    default boolean autoCapXpPerKill() { return true; }
-
-    @Range(min = 10, max = 500)
-    @ConfigItem(
-            keyName = "autoCapWindow",
-            name = "Auto cap window",
-            description = "How many recent kills to learn from",
-            section = tuning,
-            position = 3
-    )
-    default int autoCapWindow() { return 100; }
-
-    @Range(min = 5, max = 100)
-    @ConfigItem(
-            keyName = "autoCapMinKills",
-            name = "Auto cap warmup",
-            description = "Min valid kills before using the learned cap",
-            section = tuning,
-            position = 4
-    )
-    default int autoCapMinKills() { return 20; }
-
-    @Range(min = 1, max = 2_000)
-    @ConfigItem(
-            keyName = "minXpPerKillFloor",
-            name = "Manual min XP/kill (floor)",
-            description = "Ignore kills awarding less than this XP when averaging",
-            section = tuning,
-            position = 5
-    )
-    default int minXpPerKillFloor() { return 8; }
-
-    @Range(min = 100, max = 100_000)
-    @ConfigItem(
-            keyName = "maxXpPerKill",
-            name = "Manual max XP/kill (cap)",
-            description = "Used when Auto cap is OFF or during warmup",
-            section = tuning,
-            position = 6
-    )
-    default int maxXpPerKill() { return 2_000; }
-
-    @Range(min = 500, max = 200_000)
-    @ConfigItem(
-            keyName = "hardAbsoluteCap",
-            name = "Absolute XP/kill ceiling",
-            description = "Never count a single kill above this (filters lamps/quests)",
-            section = tuning,
-            position = 7
-    )
-    default int hardAbsoluteCap() { return 5_000; }
-
-    @Range(min = 1, max = 10)
+    // ─────────────────────── Detection ──────────────────────────
+    @Range(min = 1, max = 6)
     @ConfigItem(
             keyName = "detectLatchTicks",
             name = "Latch after (ticks)",
-            description = "Consecutive ticks attacking the same NPC before locking onto it",
-            section = tuning,
-            position = 8
+            description = "Ticks of attacking a new NPC before switching target",
+            position = 0,
+            section = secDetect
     )
-    default int detectLatchTicks() { return 2; }
+    default int detectLatchTicks() { return 1; }
 
-    @Range(min = 2, max = 20)
+    @Range(min = 1, max = 10)
     @ConfigItem(
             keyName = "detectLoseTicks",
-            name = "Lose target after (ticks)",
-            description = "Ticks without interacting before the detected target is cleared",
-            section = tuning,
-            position = 9
+            name = "Lose target after (ticks idle)",
+            description = "Idle ticks before forgetting the current target",
+            position = 1,
+            section = secDetect
     )
-    default int detectLoseTicks() { return 8; }
+    default int detectLoseTicks() { return 4; }
 
-    // ---------------------------------------------------------------------
-    // RECORDS / WINDOWS
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "Recorded times",
-            description = "Saved Slayer task durations (view/clear)",
-            position = 80,
-            closedByDefault = true
+    // ─────────────────────── Advanced (XP cap) ──────────────────
+    @ConfigItem(
+            keyName = "autoCapXpPerKill",
+            name = "Auto-cap XP/kill outliers",
+            description = "MAD-based bounds to ignore odd kills (multi-hit, tag, etc.)",
+            position = 0,
+            section = secAdvanced
     )
-    String records = "records";
+    default boolean autoCapXpPerKill() { return true; }
+
+    @Range(min = 1, max = 50000)
+    @ConfigItem(
+            keyName = "hardAbsoluteCap",
+            name = "Hard absolute cap (XP/kill)",
+            description = "Upper guardrail regardless of auto-cap",
+            position = 1,
+            section = secAdvanced
+    )
+    default int hardAbsoluteCap() { return 10000; }
+
+    @Range(min = 1, max = 200)
+    @ConfigItem(
+            keyName = "autoCapMinKills",
+            name = "Auto-cap min samples",
+            description = "Minimum valid kills before confidence goes green",
+            position = 2,
+            section = secAdvanced
+    )
+    default int autoCapMinKills() { return 8; }
+
+    @Range(min = 8, max = 256)
+    @ConfigItem(
+            keyName = "autoCapWindow",
+            name = "Auto-cap window size",
+            description = "Number of recent kills to model",
+            position = 3,
+            section = secAdvanced
+    )
+    default int autoCapWindow() { return 32; }
+
+    @Range(min = 1, max = 5000)
+    @ConfigItem(
+            keyName = "minXpPerKillFloor",
+            name = "Min XP/kill (floor)",
+            description = "Ignore kills awarding less than this",
+            position = 4,
+            section = secAdvanced
+    )
+    default int minXpPerKillFloor() { return 5; }
+
+    @Range(min = 10, max = 50000)
+    @ConfigItem(
+            keyName = "maxXpPerKill",
+            name = "Max XP/kill (manual cap)",
+            description = "Used if Auto-cap is off",
+            position = 5,
+            section = secAdvanced
+    )
+    default int maxXpPerKill() { return 4000; }
+
+    // ───────────────────── Windows / Tools ──────────────────────
+    @ConfigItem(
+            keyName = "respawnOverlay",
+            name = "Enable respawn overlay",
+            description = "Shows best respawn timers at death tiles",
+            position = 0,
+            section = secWindows
+    )
+    default boolean respawnOverlay() { return true; }
 
     @ConfigItem(
             keyName = "openHistoryTrigger",
-            name = "Open history now",
-            description = "Opens a read-only window with recorded task times",
-            section = records,
-            position = 1
+            name = "Open Slayer history",
+            description = "Toggle this on to open the history window (auto-resets)",
+            position = 1,
+            section = secWindows
     )
     default boolean openHistoryTrigger() { return false; }
 
     @ConfigItem(
             keyName = "clearHistoryTrigger",
-            name = "Clear history",
-            description = "Deletes all recorded task times",
-            section = records,
-            position = 2
+            name = "Clear Slayer history",
+            description = "Toggle this on to clear saved history (auto-resets)",
+            position = 2,
+            section = secWindows
     )
     default boolean clearHistoryTrigger() { return false; }
 
-    // ---------------------------------------------------------------------
-    // FAQ / HELP
-    // ---------------------------------------------------------------------
-    @ConfigSection(
-            name = "FAQ & Help",
-            description = "Quick guide to what each stat means",
-            position = 95,
-            closedByDefault = true
-    )
-    String faq = "faq";
-
     @ConfigItem(
             keyName = "openFaq",
-            name = "Open FAQ",
-            description = "Shows a quick in-client FAQ",
-            section = faq,
-            position = 1
+            name = "Open FAQ window",
+            description = "Toggle this on to open the FAQ (auto-resets)",
+            position = 3,
+            section = secWindows
     )
     default boolean openFaq() { return false; }
 }
